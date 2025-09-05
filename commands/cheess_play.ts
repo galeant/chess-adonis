@@ -36,7 +36,7 @@ export default class CheessPlay extends BaseCommand {
 
       const move = game.validateCommand(input)
       if (!move) {
-        console.log('Invalid input, use format e2e4')
+        console.log('Invalid input, use format a2,a3')
         continue
       }
       const res = game.makeMove(move.from, move.to)

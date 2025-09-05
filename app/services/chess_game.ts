@@ -1,4 +1,3 @@
-// app/services/chess_game.ts
 export type Color = 'w' | 'b'
 export type PieceType = 'K' | 'Q' | 'R' | 'B' | 'N' | 'P'
 export type Piece = { type: PieceType; color: Color } | null
@@ -82,14 +81,21 @@ export default class ChessGame {
   }
 
   validateCommand(input: string) {
-    const cleaned = input.replace(/\s+/g, '')
+    let cleaned = input.replace(/\s+/g, '').split(',')
 
-    if (!/^[a-h][1-8][a-h][1-8]$/.test(cleaned)) {
+    if (cleaned.length !== 2) {
       return null
     }
 
-    const from = this.parseCoordinate(cleaned.slice(0, 2))!
-    const to = this.parseCoordinate(cleaned.slice(2, 4))!
+    const [fromStr, toStr] = cleaned
+
+    const coordRegex = /^[a-h][1-8]$/
+    if (!coordRegex.test(fromStr) || !coordRegex.test(toStr)) {
+      return null
+    }
+
+    const from = this.parseCoordinate(cleaned[0])!
+    const to = this.parseCoordinate(cleaned[1])!
 
     return { from, to }
   }
@@ -131,41 +137,34 @@ export default class ChessGame {
 
     const diffRow = to.r - from.r
     const diffCol = to.c - from.c
-    const adr = Math.abs(diffRow)
-    const adc = Math.abs(diffCol)
+
+    const absRow = Math.abs(diffRow)
+    const absCol = Math.abs(diffCol)
 
     switch (pieceFrom.type) {
+      // Pawn
       case 'P': {
-        const dir = pieceFrom.color === 'w' ? -1 : 1
-        const startRow = pieceFrom.color === 'w' ? 6 : 1
-
-        if (dc === 0 && dr === dir && !dest) return { ok: true }
-        if (dc === 0 && dr === 2 * dir && from.r === startRow && !dest) return { ok: true }
-        if (adc === 1 && dr === dir && dest && dest.color !== piece.color) return { ok: true }
-        return { ok: false }
+        return this.validatePawnMove(pieceFrom, pieceTo, from, to, diffRow, diffCol, absCol)
       }
+      // Rook
       case 'R': {
-        if (dr !== 0 && dc !== 0) return { ok: false }
-        if (!this.isPathClear(from, to)) return { ok: false }
-        return { ok: true }
+        return this.validateLinearMove(from, to, diffRow, diffCol)
       }
+      // Baron
       case 'B': {
-        if (adr !== adc) return { ok: false }
-        if (!this.isPathClear(from, to)) return { ok: false }
-        return { ok: true }
+        return this.validateDiagonalMove(from, to, absRow, absCol)
       }
+      // Queen
       case 'Q': {
-        if (!(dr === 0 || dc === 0 || adr === adc)) return { ok: false }
-        if (!this.isPathClear(from, to)) return { ok: false }
-        return { ok: true }
+        return this.validateQueenMove(from, to, diffRow, diffCol, absRow, absCol)
       }
+      // Knight
       case 'N': {
-        if ((adr === 2 && adc === 1) || (adr === 1 && adc === 2)) return { ok: true }
-        return { ok: false }
+        return this.validateKnightMove(absRow, absCol)
       }
+      // King
       case 'K': {
-        if (Math.max(adr, adc) === 1) return { ok: true }
-        return { ok: false }
+        return this.validateKingMove(absRow, absCol)
       }
     }
   }
@@ -178,20 +177,108 @@ export default class ChessGame {
     this.board[pos.r][pos.c] = piece
   }
 
-  inBounds(pos: { r: number; c: number }) {
-    return pos.r >= 0 && pos.r < 8 && pos.c >= 0 && pos.c < 8
+  isPathClear(from: { r: number; c: number }, to: { r: number; c: number }) {
+    const diffR = Math.sign(to.r - from.r)
+    const diffC = Math.sign(to.c - from.c)
+    let r = from.r + diffR
+    let c = from.c + diffC
+    while (r !== to.r || c !== to.c) {
+      if (this.board[r][c] !== null) {
+        return { ok: false, reason: 'Path blocked' }
+      }
+      r += diffR
+      c += diffC
+    }
+    return { ok: true }
   }
 
-  isPathClear(from: { r: number; c: number }, to: { r: number; c: number }) {
-    const dr = Math.sign(to.r - from.r)
-    const dc = Math.sign(to.c - from.c)
-    let r = from.r + dr
-    let c = from.c + dc
-    while (r !== to.r || c !== to.c) {
-      if (this.board[r][c] !== null) return false
-      r += dr
-      c += dc
+  validatePawnMove(
+    pieceFrom: Piece,
+    pieceTo: Piece,
+    from: { r: number; c: number },
+    to: { r: number; c: number },
+    diffRow: number,
+    diffCol: number,
+    absCol: number
+  ) {
+    const dir = pieceFrom?.color === 'w' ? -1 : 1
+    const startRow = pieceFrom?.color === 'w' ? 6 : 1
+
+    const { ok } = this.isPathClear(from, to)
+    // 1 step
+    if (diffCol === 0 && diffRow === dir && !pieceTo && ok) {
+      return { ok: true }
     }
-    return true
+
+    // 2 step first
+    if (diffCol === 0 && diffRow === 2 * dir && from.r === startRow && !pieceTo && ok) {
+      return { ok: true }
+    }
+
+    // take enemey
+    if (absCol === 1 && diffRow === dir && pieceTo && pieceTo.color !== pieceFrom?.color) {
+      return { ok: true }
+    }
+    // else
+    return { ok: false, reason: 'Invalid pawn move' }
+  }
+
+  validateLinearMove(
+    from: { r: number; c: number },
+    to: { r: number; c: number },
+    diffRow: number,
+    diffCol: number
+  ) {
+    if (diffRow !== 0 && diffCol !== 0) {
+      return { ok: false, reason: 'Invalid linear move' }
+    }
+    return this.isPathClear(from, to)
+  }
+
+  validateDiagonalMove(
+    from: { r: number; c: number },
+    to: { r: number; c: number },
+    absRow: number,
+    absCol: number
+  ) {
+    if (absRow !== absCol) {
+      return { ok: false, reason: 'Invalid diagonal move' }
+    }
+
+    return this.isPathClear(from, to)
+  }
+
+  validateQueenMove(
+    from: { r: number; c: number },
+    to: { r: number; c: number },
+    diffRow: number,
+    diffCol: number,
+    absRow: number,
+    absCol: number
+  ) {
+    if (diffRow === 0 || diffCol === 0) {
+      return this.validateLinearMove(from, to, diffRow, diffCol)
+    }
+
+    if (absRow === absCol) {
+      return this.validateDiagonalMove(from, to, absRow, absCol)
+    }
+
+    return { ok: false, reason: 'Invalid queen move' }
+  }
+
+  validateKnightMove(absRow: number, absCol: number) {
+    // L dir
+    if ((absRow === 2 && absCol === 1) || (absRow === 1 && absCol === 2)) {
+      return { ok: true }
+    }
+    return { ok: false, reason: 'Invalid knight move' }
+  }
+
+  validateKingMove(absRow: number, absCol: number) {
+    if (Math.max(absRow, absCol) === 1) {
+      return { ok: true }
+    }
+    return { ok: false, reason: 'Invalid king move' }
   }
 }
