@@ -5,6 +5,14 @@ export type Piece = { type: PieceType; color: Color } | null
 export default class ChessGame {
   board: Piece[][]
   turn: Color
+  // Default position king
+  kingPos: Record<Color, { r: number; c: number }> = { w: { r: 7, c: 4 }, b: { r: 0, c: 4 } }
+  // Track king and rook is move
+  kingMoved: Record<Color, boolean> = { w: false, b: false }
+  rookMoved: Record<Color, { left: boolean; right: boolean }> = {
+    w: { left: false, right: false },
+    b: { left: false, right: false },
+  }
 
   constructor() {
     this.board = this.initBoard()
@@ -75,8 +83,15 @@ export default class ChessGame {
         }
       }
     }
-    if (!wKing) return { finished: true, winner: 'b' }
-    if (!bKing) return { finished: true, winner: 'w' }
+
+    if (!wKing) {
+      return { finished: true, winner: 'Black' }
+    }
+
+    if (!bKing) {
+      return { finished: true, winner: 'White' }
+    }
+
     return { finished: false }
   }
 
@@ -111,28 +126,89 @@ export default class ChessGame {
   }
 
   makeMove(from: { r: number; c: number }, to: { r: number; c: number }) {
-    const v = this.validateMove(from, to)
-    if (!v?.ok) return { ok: false, msg: 'illegal move' }
+    const validate = this.validateMove(from, to)
+    if (!validate?.ok) {
+      return { ok: false, msg: validate?.msg }
+    }
     const moving = this.getPiece(from)
     this.setPiece(to, moving)
     this.setPiece(from, null)
+
+    // validate is on check
+    const isCheck = this.isOnAttack(this.kingPos[this.turn])
+    if (isCheck) {
+      this.setPiece(to, null)
+      this.setPiece(from, moving)
+      return { ok: false, msg: 'you are on check' }
+    }
+
+    // Pawn promote
+    const lastRow = moving?.color === 'w' ? 0 : 7
+    if (moving && moving.type === 'P' && to.r === lastRow) {
+      return { ok: true, msg: 'moved', promote: true }
+    }
+
+    if (moving?.type === 'K') {
+      // Track King move
+      this.kingPos[moving.color] = { ...to }
+      this.kingMoved[moving.color] = true
+      // Castling
+      if (Math.abs(to.c - from.c) === 2) {
+        const kingside = to.c > from.c
+        const rookFromC = kingside ? 7 : 0
+        const rookToC = kingside ? 5 : 3
+
+        const rook = this.getPiece({ r: from.r, c: rookFromC })
+        if (rook && rook.type === 'R') {
+          this.setPiece({ r: from.r, c: rookToC }, rook)
+          this.setPiece({ r: from.r, c: rookFromC }, null)
+        }
+      }
+    }
+
+    // Rook track move for castling
+    if (moving?.type === 'R') {
+      if (from.r === 7) {
+        // White rook
+        if (from.c === 0) {
+          this.rookMoved['w'].left = true
+        } else if (from.c === 7) {
+          this.rookMoved['w'].right = true
+        }
+      }
+      // Black rook
+      if (from.r === 0) {
+        if (from.c === 0) {
+          this.rookMoved['b'].left = true
+        } else if (from.c === 7) {
+          this.rookMoved['b'].right = true
+        }
+      }
+    }
+
     this.turn = this.turn === 'w' ? 'b' : 'w'
     return { ok: true, msg: 'moved' }
   }
 
-  validateMove(from: { r: number; c: number }, to: { r: number; c: number }) {
+  validateMove(
+    from: { r: number; c: number },
+    to: { r: number; c: number },
+    checkAttack?: boolean
+  ) {
     const pieceFrom = this.getPiece(from)
     if (!pieceFrom) {
-      return { ok: false, reason: 'no piece' }
-    }
-
-    if (pieceFrom.color !== this.turn) {
-      return { ok: false, reason: 'wrong turn' }
+      return { ok: false, msg: 'no piece' }
     }
 
     const pieceTo = this.getPiece(to)
     if (pieceTo && pieceTo.color === pieceFrom.color) {
-      return { ok: false, reason: 'same color' }
+      return { ok: false, msg: 'same color' }
+    }
+
+    if (!checkAttack) {
+      if (pieceFrom.color !== this.turn) {
+        return { ok: false, msg: 'wrong turn' }
+      }
     }
 
     const diffRow = to.r - from.r
@@ -164,7 +240,7 @@ export default class ChessGame {
       }
       // King
       case 'K': {
-        return this.validateKingMove(absRow, absCol)
+        return this.validateKingMove(from, to, absRow, absCol)
       }
     }
   }
@@ -184,7 +260,7 @@ export default class ChessGame {
     let c = from.c + diffC
     while (r !== to.r || c !== to.c) {
       if (this.board[r][c] !== null) {
-        return { ok: false, reason: 'Path blocked' }
+        return { ok: false, msg: 'Path blocked' }
       }
       r += diffR
       c += diffC
@@ -204,7 +280,11 @@ export default class ChessGame {
     const dir = pieceFrom?.color === 'w' ? -1 : 1
     const startRow = pieceFrom?.color === 'w' ? 6 : 1
 
-    const { ok } = this.isPathClear(from, to)
+    const { ok, msg } = this.isPathClear(from, to)
+
+    if (!ok) {
+      return { ok: false, msg: msg }
+    }
     // 1 step
     if (diffCol === 0 && diffRow === dir && !pieceTo && ok) {
       return { ok: true }
@@ -220,7 +300,7 @@ export default class ChessGame {
       return { ok: true }
     }
     // else
-    return { ok: false, reason: 'Invalid pawn move' }
+    return { ok: false, msg: 'Invalid pawn move' }
   }
 
   validateLinearMove(
@@ -230,7 +310,7 @@ export default class ChessGame {
     diffCol: number
   ) {
     if (diffRow !== 0 && diffCol !== 0) {
-      return { ok: false, reason: 'Invalid linear move' }
+      return { ok: false, msg: 'Invalid linear move' }
     }
     return this.isPathClear(from, to)
   }
@@ -242,7 +322,7 @@ export default class ChessGame {
     absCol: number
   ) {
     if (absRow !== absCol) {
-      return { ok: false, reason: 'Invalid diagonal move' }
+      return { ok: false, msg: 'Invalid diagonal move' }
     }
 
     return this.isPathClear(from, to)
@@ -264,7 +344,7 @@ export default class ChessGame {
       return this.validateDiagonalMove(from, to, absRow, absCol)
     }
 
-    return { ok: false, reason: 'Invalid queen move' }
+    return { ok: false, msg: 'Invalid queen move' }
   }
 
   validateKnightMove(absRow: number, absCol: number) {
@@ -272,13 +352,73 @@ export default class ChessGame {
     if ((absRow === 2 && absCol === 1) || (absRow === 1 && absCol === 2)) {
       return { ok: true }
     }
-    return { ok: false, reason: 'Invalid knight move' }
+    return { ok: false, msg: 'Invalid knight move' }
   }
 
-  validateKingMove(absRow: number, absCol: number) {
+  validateKingMove(
+    from: { r: number; c: number },
+    to: { r: number; c: number },
+    absRow: number,
+    absCol: number
+  ) {
+    if (absRow === 0 && absCol === 2) {
+      if (this.kingMoved[this.turn]) {
+        return { ok: false, reason: 'King already moved' }
+      }
+
+      const kingside = to.c > from.c
+
+      const rookC = kingside ? 7 : 0 // 7 right rook, 0 left rook
+      const rook = this.getPiece({ r: from.r, c: rookC })
+      if (!rook || rook.type !== 'R') {
+        return { ok: false, reason: 'No rook to castle' }
+      }
+
+      const checkPath = this.isPathClear(from, to)
+      if (!checkPath?.ok) {
+        return { ok: false, reason: 'Path blocked' }
+      }
+      // const step = kingside ? 1 : -1
+      // for (let c = from.c + step; c !== rookC; c += step) {
+      //   if (this.getPiece({ r: from.r, c })) return { ok: false, reason: 'Path blocked' }
+      // }
+
+      const step = kingside ? 1 : -1
+      for (let c = from.c; c !== to.c + step; c += step) {
+        if (this.isOnAttack({ r: from.r, c }))
+          return { ok: false, reason: 'King would pass through check' }
+      }
+
+      return { ok: true }
+    }
+
     if (Math.max(absRow, absCol) === 1) {
       return { ok: true }
     }
-    return { ok: false, reason: 'Invalid king move' }
+    return { ok: false, msg: 'Invalid king move' }
+  }
+
+  promotion(to: { r: number; c: number }, promoteTo: PieceType) {
+    const piece = this.getPiece(to)
+    if (piece && piece.type === 'P') {
+      this.setPiece(to, { type: promoteTo, color: piece.color })
+    }
+  }
+
+  isOnAttack(pos: { r: number; c: number }): boolean {
+    const enemy: Color = this.turn === 'w' ? 'b' : 'w'
+
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const piece = this.board[r][c]
+        if (piece && piece.color === enemy) {
+          const enemyMove = this.validateMove({ r, c }, pos, true)
+          if (enemyMove.ok) {
+            return true
+          }
+        }
+      }
+    }
+    return false
   }
 }

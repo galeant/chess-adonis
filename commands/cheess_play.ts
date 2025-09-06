@@ -34,13 +34,28 @@ export default class CheessPlay extends BaseCommand {
         break
       }
 
-      const move = game.validateCommand(input)
-      if (!move) {
+      const cmd = game.validateCommand(input)
+      if (!cmd) {
         console.log('Invalid input, use format a2,a3')
         continue
       }
-      const res = game.makeMove(move.from, move.to)
-      if (!res.ok) console.log('Invalid:', res.msg)
+
+      const move = game.makeMove(cmd.from, cmd.to)
+      if (!move.ok) {
+        console.log('Invalid:', move.msg)
+        continue
+      }
+
+      if (move?.promote) {
+        let choice: string
+        const valid = ['Q', 'R', 'B', 'N']
+
+        do {
+          choice = await ask(`${turn} pawn promotion! Choose (Q,R,B,N): `)
+        } while (!valid.includes(choice))
+
+        game.promotion(cmd.to, choice as 'Q' | 'R' | 'B' | 'N')
+      }
     }
 
     rl.close()
