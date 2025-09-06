@@ -388,16 +388,12 @@ export default class ChessGame {
       if (!checkPath?.ok) {
         return { ok: false, msg: 'Path blocked' }
       }
-      // const step = kingside ? 1 : -1
-      // for (let c = from.c + step; c !== rookC; c += step) {
-      //   if (this.getPiece({ r: from.r, c })) return { ok: false, reason: 'Path blocked' }
-      // }
 
-      // const step = kingside ? 1 : -1
-      // for (let c = from.c; c !== to.c + step; c += step) {
-      //   if (this.isOnAttack({ r: from.r, c }))
-      //     return { ok: false, reason: 'King would pass through check' }
-      // }
+      const step = kingside ? 1 : -1
+      for (let c = from.c; c !== to.c + step; c += step) {
+        if (this.isOnAttack({ r: from.r, c }))
+          return { ok: false, reason: 'King would pass through check' }
+      }
 
       return { ok: true }
     }
