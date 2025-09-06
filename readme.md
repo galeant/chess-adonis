@@ -31,6 +31,10 @@ node ace generate:key
 ```bash
 node ace chess:play
 ```
+### 6. Run test (optional)
+```bash
+node ace chess:play
+```
 
 
 ## Console Chess Game
