@@ -33,7 +33,7 @@ node ace chess:play
 ```
 ### 6. Run test (optional)
 ```bash
-node ace chess:play
+node ace test
 ```
 
 
