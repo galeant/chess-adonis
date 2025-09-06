@@ -10,8 +10,8 @@ Before running the project, make sure you have installed:
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-username/your-adonis-project.git
-cd your-adonis-project
+git clone https://github.com/galeant/chess-adonis.git
+cd chess-adonis
 ```
 ### 2. Install dependency
 ```bash
