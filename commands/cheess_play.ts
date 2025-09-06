@@ -4,8 +4,8 @@ import ChessGame from '#services/chess_game'
 import * as readline from 'node:readline'
 
 export default class CheessPlay extends BaseCommand {
-  static commandName = 'cheess:play'
-  static description = ''
+  static commandName = 'chess:play'
+  static description = 'Run Chess on console'
 
   static options: CommandOptions = {}
 
