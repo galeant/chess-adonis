@@ -195,6 +195,10 @@ export default class ChessGame {
     to: { r: number; c: number },
     checkAttack?: boolean
   ) {
+    if (from.r == to.r && from.c == to.c) {
+      return { ok: false, msg: 'from and to cant be same' }
+    }
+
     const pieceFrom = this.getPiece(from)
     if (!pieceFrom) {
       return { ok: false, msg: 'no piece' }

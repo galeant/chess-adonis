@@ -40,6 +40,11 @@ export default class CheessPlay extends BaseCommand {
         continue
       }
 
+      // if (game.isCheck(game.turn)) {
+      //   console.log(`${turn} King is in check!`)
+      //   continue
+      // }
+
       const move = game.makeMove(cmd.from, cmd.to)
       if (!move.ok) {
         console.log('Invalid:', move.msg)
