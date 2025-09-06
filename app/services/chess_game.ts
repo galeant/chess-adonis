@@ -126,21 +126,23 @@ export default class ChessGame {
   }
 
   makeMove(from: { r: number; c: number }, to: { r: number; c: number }) {
+    const moving = this.getPiece(from)
+
+    // validate is on check
+    const isCheck = this.isOnAttack(this.kingPos[this.turn])
+    if (isCheck) {
+      this.setPiece(to, null)
+      this.setPiece(from, moving)
+      return { ok: false, msg: 'you are on check' }
+    }
+
     const validate = this.validateMove(from, to)
     if (!validate?.ok) {
       return { ok: false, msg: validate?.msg }
     }
-    const moving = this.getPiece(from)
+
     this.setPiece(to, moving)
     this.setPiece(from, null)
-
-    // validate is on check
-    // const isCheck = this.isOnAttack(this.kingPos[this.turn])
-    // if (isCheck) {
-    //   this.setPiece(to, null)
-    //   this.setPiece(from, moving)
-    //   return { ok: false, msg: 'you are on check' }
-    // }
 
     // Pawn promote
     const lastRow = moving?.color === 'w' ? 0 : 7
@@ -262,7 +264,11 @@ export default class ChessGame {
     const diffC = Math.sign(to.c - from.c)
     let r = from.r + diffR
     let c = from.c + diffC
+
     while (r !== to.r || c !== to.c) {
+      if (r < 0 || r > 7 || c < 0 || c > 7) {
+        return { ok: false, msg: 'Out of board' }
+      }
       if (this.board[r][c] !== null) {
         return { ok: false, msg: 'Path blocked' }
       }
@@ -417,7 +423,6 @@ export default class ChessGame {
         const piece = this.board[r][c]
         if (piece && piece.color === enemy) {
           const enemyMove = this.validateMove({ r, c }, pos, true)
-          // console.log(enemyMove, enemy, { r, c })
           if (enemyMove.ok) {
             return true
           }

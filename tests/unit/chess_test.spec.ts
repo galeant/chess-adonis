@@ -264,26 +264,15 @@ test.group('Chess test', () => {
     assert.deepEqual(game.board[0][0], { type: 'Q', color: 'w' })
   })
 
-  // test('check detection', ({ assert }) => {
-  //   const game = new ChessGame()
+  test('check detection', ({ assert }) => {
+    const game = new ChessGame()
 
-  //   // white
-  //   game.board[0][4] = { type: 'K', color: 'w' }
-  //   game.board[1][4] = { type: 'R', color: 'b' }
-  //   console.log(game.turn)
-  //   console.log('\n' + game.displayBoard())
-  //   const check = game.makeMove({ r: 6, c: 0 }, { r: 5, c: 0 })
-  //   // console.log(check)
-  // })
+    // Black on check
+    game.board[0][4] = { type: 'K', color: 'b' }
+    game.board[1][4] = { type: 'R', color: 'w' }
 
-  // test('checkmate detection', ({ assert }) => {
-  //   const game = new ChessGame()
-  //   // Setup Fool's mate
-  //   game.board[0][4] = { type: 'K', color: 'b' }
-  //   game.board[1][5] = { type: 'Q', color: 'w' }
-  //   game.board[1][6] = { type: 'B', color: 'w' }
-
-  //   const checkmate = game.isCheckmate('b')
-  //   assert.isTrue(checkmate)
-  // })
+    game.turn = 'b'
+    const check = game.makeMove({ r: 6, c: 0 }, { r: 5, c: 0 })
+    assert.isFalse(check.ok)
+  })
 })
