@@ -135,12 +135,12 @@ export default class ChessGame {
     this.setPiece(from, null)
 
     // validate is on check
-    const isCheck = this.isOnAttack(this.kingPos[this.turn])
-    if (isCheck) {
-      this.setPiece(to, null)
-      this.setPiece(from, moving)
-      return { ok: false, msg: 'you are on check' }
-    }
+    // const isCheck = this.isOnAttack(this.kingPos[this.turn])
+    // if (isCheck) {
+    //   this.setPiece(to, null)
+    //   this.setPiece(from, moving)
+    //   return { ok: false, msg: 'you are on check' }
+    // }
 
     // Pawn promote
     const lastRow = moving?.color === 'w' ? 0 : 7
@@ -363,7 +363,7 @@ export default class ChessGame {
   ) {
     if (absRow === 0 && absCol === 2) {
       if (this.kingMoved[this.turn]) {
-        return { ok: false, reason: 'King already moved' }
+        return { ok: false, msg: 'King already moved' }
       }
 
       const kingside = to.c > from.c
@@ -371,23 +371,23 @@ export default class ChessGame {
       const rookC = kingside ? 7 : 0 // 7 right rook, 0 left rook
       const rook = this.getPiece({ r: from.r, c: rookC })
       if (!rook || rook.type !== 'R') {
-        return { ok: false, reason: 'No rook to castle' }
+        return { ok: false, msg: 'No rook to castle' }
       }
 
       const checkPath = this.isPathClear(from, to)
       if (!checkPath?.ok) {
-        return { ok: false, reason: 'Path blocked' }
+        return { ok: false, msg: 'Path blocked' }
       }
       // const step = kingside ? 1 : -1
       // for (let c = from.c + step; c !== rookC; c += step) {
       //   if (this.getPiece({ r: from.r, c })) return { ok: false, reason: 'Path blocked' }
       // }
 
-      const step = kingside ? 1 : -1
-      for (let c = from.c; c !== to.c + step; c += step) {
-        if (this.isOnAttack({ r: from.r, c }))
-          return { ok: false, reason: 'King would pass through check' }
-      }
+      // const step = kingside ? 1 : -1
+      // for (let c = from.c; c !== to.c + step; c += step) {
+      //   if (this.isOnAttack({ r: from.r, c }))
+      //     return { ok: false, reason: 'King would pass through check' }
+      // }
 
       return { ok: true }
     }
@@ -413,6 +413,7 @@ export default class ChessGame {
         const piece = this.board[r][c]
         if (piece && piece.color === enemy) {
           const enemyMove = this.validateMove({ r, c }, pos, true)
+          // console.log(enemyMove, enemy, { r, c })
           if (enemyMove.ok) {
             return true
           }
